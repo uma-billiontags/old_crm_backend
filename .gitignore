@@ -17,3 +17,6 @@ __pycache__/
 # Static
 staticfiles/
 media/ 
+
+# sql
+local_backup_utf8.sql
