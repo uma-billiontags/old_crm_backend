@@ -48,6 +48,10 @@ class SuitConfig(DjangoSuitConfig):
             ChildItem('Invoice Summary', url='/reports/invoice-summary/',
                       permissions=['invoices.view_allinvoice']),
 
+            #ChildItem('Invoice Reconciliation', url='/admin/invoices/invoice-reconciliation/', permissions=['invoices.view_allinvoice']),
+            #ChildItem('Invoice Reconciliation', url='/invoices/allinvoice/invoice-reconciliation/', permissions=['invoices.view_allinvoice']),
+            ChildItem('Invoice Reconciliation', url='/reports/invoice-summary-reconciliation/',permissions=['invoices.view_allinvoice']),
+
         ], icon='fa fa-leaf'),
         ParentItem('Categories', children=[
             ChildItem(model='categories.invoicebankdetails'),

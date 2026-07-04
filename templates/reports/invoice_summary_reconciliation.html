@@ -1,0 +1,387 @@
+{% extends "admin/base_site.html" %}
+{% load static i18n humanize reports %}
+
+{% block extrastyle %}{{ block.super }}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/linways/table-to-excel@v1.0.4/dist/tableToExcel.js"></script>
+{% endblock %}
+
+{% block content %}
+<style>
+    .table-bordered th, .table-bordered td {
+        text-align: center;
+        vertical-align: middle;
+    }
+    .over-pace   { color: #1a7a30; font-weight: 600; }
+    .under-pace  { color: #c0392b; font-weight: 600; }
+    .pending-pace{ color: #888;    font-style: italic; }
+</style>
+
+<script>
+    var months_values = []
+    {% for reporting_date in reporting_dates %}
+        {% if reporting_date <= invoice_month %}
+        months_values.push('{{reporting_date|date:"F_Y"}}');
+        {% endif %}
+    {% endfor %}
+</script>
+
+<form>
+    <div class="row">
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="company">Select Companies</label>
+                <select class="custom-select form-control" id="company" name="company">
+                    <option value="">Choose..</option>
+                    {% for obj in company %}
+                    <option value="{{obj.name}}"
+                            {% if obj.name == request.GET.company %} selected {% endif %}>{{obj}}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="reportDate">Report On</label>
+                <input type="text" id="reportDate" class="form-control" name="date"
+                       value="{{invoice_on|date:'Y-m-d'}}"/>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary mb-2">Submit</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% if object_list %}
+<input type="button" id="downloadExcelBtn" class="btn btn-primary mb-2"
+       data-company="{{request.GET.company}}"
+       data-month="{{invoice_on|date:'F-Y'}}"
+       value="Download Excel">
+
+<script>
+document.getElementById('downloadExcelBtn').addEventListener('click', function() {
+    var company = this.dataset.company || 'All-Companies';
+    var month = this.dataset.month;
+    TableToExcel.convert(document.getElementById('myTable'), {
+        name: company + ' ' + month + ' Campaign Summary.xlsx',
+        sheet: { name: 'Summary' }
+    });
+});
+</script>
+
+
+
+
+<div class="my-3">
+    Showing <b>{{page_obj.paginator.count}}</b> results for <b>"{{invoice_on|date:"F Y"}}"</b> Insertion Orders
+</div>
+
+<div class="table-responsive">
+    <table id="myTable" class="table table-bordered"
+           <table id="myTable" class="table table-bordered"
+                  data-cols-width="30,30,30,25,20,25,20,20,30,{% for reporting_date in reporting_dates %}{% if reporting_date <= invoice_month %}30,30,30,{% if reporting_date == invoice_month %}30,30,30,{% endif %}{% endif %}{% endfor %}20,20">
+        <thead>
+        <tr data-height="50">
+            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Company</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Campaign Name</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:160px">IO Name</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">Flight Dates</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Ad-Format</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Ethnicity</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Billable Impressions</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">CPM ({{currency.billing_currency.iso_code_3}})</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Budget Given ({{currency.billing_currency.iso_code_3}})</th>
+
+            {% for reporting_date in reporting_dates %}
+            {% if reporting_date <= invoice_month %}
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">
+                Billable Impressions - {{reporting_date|date:"F Y"}}
+            </th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">
+                Total Impressions - {{reporting_date|date:"F Y"}}
+            </th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">
+                Amount Spent - {{reporting_date|date:"F Y"}} ({{currency.billing_currency.iso_code_3}})
+            </th>
+            {% if reporting_date == invoice_month %}
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:110px">
+                Planned Impressions - {{reporting_date|date:"F Y"}}
+            </th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:100px">
+                Variance - {{reporting_date|date:"F Y"}}
+            </th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:100px">
+                Pacing % - {{reporting_date|date:"F Y"}}
+            </th>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">
+                Amount Pending ({{currency.billing_currency.iso_code_3}})
+            </th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">
+                Billable Impressions Pending
+            </th>
+        </tr>
+        </thead>
+
+        <tbody>
+        {% regroup object_list by sub_campaign.campaign.company as company_list %}
+{% for company_group in company_list %}
+    {% for item in company_group.list %}
+        <tr data-height="30">
+            {% if forloop.first %}
+            <th rowspan="{{ company_group.list|sum_io_details }}" data-a-wrap="true" data-a-v="middle" data-a-h="center" style="max-width:150px; word-break:break-all">{{ company_group.grouper }}</th>
+            {% endif %}
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center"
+                style="max-width:280px; word-break:break-all"
+                rowspan="{{item.io_details.count}}">
+                {{item.sub_campaign.name}}
+            </th>
+
+            {% for obj in item.io_details.all %}
+            {% line_item_reconciliation obj reporting_dates as reports %}
+         
+            {% if forloop.first %}
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.description}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.start_date}} - {{obj.end_date}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.ad_type}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.ethinicity}}</td>
+            <td class="volume" data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.volume|intcomma}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center" class="text-right">{{obj.unit_cost}}</td>
+            <td data-t class="budget text-right" data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.net_cost}}</td>
+
+            {% for report in reports.month %}
+            {% if report.report_on <= invoice_month %}
+            <td class='billable_impression_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.billable_impression|intcomma}}
+            </td>
+            <td class='delivered_impression_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.delivered_impression|intcomma}}
+            </td>
+            <td class='amount_{{report.report_on|date:"F_Y"}} text-right'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.amount}}
+            </td>
+            {% if report.report_on == invoice_month %}
+            <td class='planned_impression_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.planned_impression|intcomma}}
+            </td>
+            <td class='variance_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {% if report.variance == None %}—{% else %}{{report.variance|intcomma}}{% endif %}
+            </td>
+            <td class='pacing_{{report.report_on|date:"F_Y"}}
+                {% if report.pacing_pct != None and report.pacing_pct > 2 %}over-pace
+                {% elif report.pacing_pct != None and report.pacing_pct < -2 %}under-pace
+                {% elif report.pacing_label == "pending" %}pending-pace{% endif %}'
+                {% if report.pacing_pct != None and report.pacing_pct > 2 %}data-f-color="1A7A30" data-f-bold="true"
+                {% elif report.pacing_pct != None and report.pacing_pct < -2 %}data-f-color="C0392B" data-f-bold="true"
+                {% elif report.pacing_label == "pending" %}data-f-color="888888"{% endif %}
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.pacing_label}}
+            </td>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center" class="text-right balance_amount">
+                {{reports.balance_amount|intcomma}}
+            </td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center" class="balance_impression">
+                {{reports.balance_impression|intcomma|default:0}}
+            </td>
+            {% endif %}
+            {% endfor %}
+        </tr>
+
+        {% for obj in item.io_details.all %}
+        {% line_item_reconciliation obj reporting_dates as reports %}
+      
+        {% if not forloop.first %}
+        <tr data-height="30">
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.description}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.start_date}} - {{obj.end_date}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.ad_type}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.ethinicity}}</td>
+            <td class="volume" data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.volume|intcomma}}</td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center" class="text-right">{{obj.unit_cost}}</td>
+            <td class="budget text-right" data-a-wrap="true" data-a-v="middle" data-a-h="center">{{obj.net_cost}}</td>
+
+            {% for report in reports.month %}
+            {% if report.report_on <= invoice_month %}
+            <td class='billable_impression_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.billable_impression|intcomma}}
+            </td>
+            <td class='delivered_impression_{{report.report_on|date:"F_Y"}}' data-t
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.delivered_impression|intcomma}}
+            </td>
+            <td class='amount_{{report.report_on|date:"F_Y"}} text-right'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.amount}}
+            </td>
+            {% if report.report_on == invoice_month %}
+            <td class='planned_impression_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.planned_impression|intcomma}}
+            </td>
+            <td class='variance_{{report.report_on|date:"F_Y"}}'
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {% if report.variance == None %}—{% else %}{{report.variance|intcomma}}{% endif %}
+            </td>
+            <td class='pacing_{{report.report_on|date:"F_Y"}}
+                {% if report.pacing_pct != None and report.pacing_pct > 2 %}over-pace
+                {% elif report.pacing_pct != None and report.pacing_pct < -2 %}under-pace
+                {% elif report.pacing_label == "pending" %}pending-pace{% endif %}'
+                {% if report.pacing_pct != None and report.pacing_pct > 2 %}data-f-color="1A7A30" data-f-bold="true"
+                {% elif report.pacing_pct != None and report.pacing_pct < -2 %}data-f-color="C0392B" data-f-bold="true"
+                {% elif report.pacing_label == "pending" %}data-f-color="888888"{% endif %}
+                data-a-wrap="true" data-a-v="middle" data-a-h="center">
+                {{report.pacing_label}}
+            </td>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+
+            <td data-t data-a-wrap="true" data-a-v="middle" data-a-h="center" class="text-right balance_amount">
+                {{reports.balance_amount|intcomma}}
+            </td>
+            <td data-a-wrap="true" data-a-v="middle" data-a-h="center" class="balance_impression">
+                {{reports.balance_impression|intcomma|default:0}}
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+{% endfor %}
+
+        {# ── Total row ── #}
+        <tr data-height="40">
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" colspan="6">Total</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" id="total_billable_impression"></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" id="total_budget">0</th>
+            {% for reporting_date in reporting_dates %}
+            {% if reporting_date <= invoice_month %}
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"
+                id='billable_impression_{{reporting_date|date:"F_Y"}}'></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"
+                id='delivered_impression_{{reporting_date|date:"F_Y"}}'></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"
+                id='amount_{{reporting_date|date:"F_Y"}}'></th>
+            {% if reporting_date == invoice_month %}
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"
+                id='planned_impression_{{reporting_date|date:"F_Y"}}'></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"
+                id='variance_{{reporting_date|date:"F_Y"}}'></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true"></th>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" id="total_balance_amount"></th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" id="total_balance_impression"></th>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+$(document).ready(function() {
+    var total_billable_impression = 0;
+    var total_budget = 0;
+    var total_balance_amount = 0;
+    var total_balance_impression = 0;
+
+    $('.volume').map((item, value) => {
+        total_billable_impression += parseFloat($(value).text().replaceAll(",", "")) || 0;
+    });
+    $('.budget').map((item, value) => {
+        total_budget += parseFloat($(value).text().replaceAll(",", "")) || 0;
+    });
+    $('.balance_amount').map((item, value) => {
+        total_balance_amount += parseFloat($(value).text().replaceAll(",", "")) || 0;
+    });
+    $('.balance_impression').map((item, value) => {
+        total_balance_impression += parseFloat($(value).text().replaceAll(",", "")) || 0;
+    });
+
+    var total_months_value = months_values.map((value) => {
+        var billable_impression  = 0;
+        var delivered_impression = 0;
+        var amount               = 0;
+        var planned_impression   = 0;
+        var variance             = 0;
+
+        $(`.billable_impression_${value}`).map((item, val) => {
+            billable_impression += parseFloat($(val).text().replaceAll(",", "")) || 0;
+        });
+        $(`.delivered_impression_${value}`).map((item, val) => {
+            delivered_impression += parseFloat($(val).text().replaceAll(",", "")) || 0;
+        });
+        $(`.amount_${value}`).map((item, val) => {
+            amount += parseFloat($(val).text().replaceAll(",", "")) || 0;
+        });
+        $(`.planned_impression_${value}`).map((item, val) => {
+            planned_impression += parseFloat($(val).text().replaceAll(",", "")) || 0;
+        });
+        $(`.variance_${value}`).map((item, val) => {
+            var v = parseFloat($(val).text().replaceAll(",", ""));
+            if (!isNaN(v)) variance += v;
+        });
+
+        return {
+            billable_impression,
+            delivered_impression,
+            amount,
+            planned_impression,
+            variance,
+            month: value
+        };
+    });
+
+    $('#total_billable_impression').text(total_billable_impression.toLocaleString());
+    $('#total_budget').text(total_budget.toLocaleString());
+    $('#total_balance_amount').text(total_balance_amount.toLocaleString());
+    $('#total_balance_impression').text(total_balance_impression.toLocaleString());
+
+    total_months_value.map((value) => {
+        $(`#billable_impression_${value.month}`).text(value.billable_impression.toLocaleString());
+        $(`#delivered_impression_${value.month}`).text(value.delivered_impression.toLocaleString());
+        $(`#amount_${value.month}`).text(value.amount.toFixed(2).toLocaleString());
+        $(`#planned_impression_${value.month}`).text(
+            value.planned_impression > 0 ? Math.round(value.planned_impression).toLocaleString() : ''
+        );
+        if ($(`#variance_${value.month}`).length) {
+            var varEl   = $(`#variance_${value.month}`);
+            var varText = (value.variance > 0 ? '+' : '') + Math.round(value.variance).toLocaleString();
+            varEl.text(varText);
+            varEl.css('color', value.variance > 0 ? '#1a7a30' : value.variance < 0 ? '#c0392b' : 'inherit');
+        }
+    });
+});
+</script>
+{% endif %}
+
+<script>
+$(document).ready(function() {
+    $('.custom-select').select2();
+    $('#reportDate').daterangepicker({
+        singleDatePicker: true,
+        showDropdowns: true,
+        maxDate: moment(),
+        locale: { format: 'YYYY-MM-DD' }
+    });
+});
+</script>
+{% endblock %}

@@ -16,6 +16,7 @@ from categories.admin import admin_site
 from insertion_order.models import Campaigns
 from invoices import models, utils
 from invoices.utils import perform_operation
+from django.shortcuts import render
 
 
 from django.http import JsonResponse
@@ -286,6 +287,7 @@ class AllInvoice(models.Invoices):  # all invoices regardless of payment status 
 #         self.fields["campaigns"].queryset = Campaigns.objects.filter(
 #             company=company, is_active=True, start_date__lte=end_of_month, end_date__gte=start_of_month).order_by("name")
         
+
 
 # Django ModelForm used in the Django Admin for the Invoices model.
 class InvoiceAdminForm(forms.ModelForm):
@@ -668,12 +670,27 @@ class InvoicesAdmin(admin.ModelAdmin):
 
     def get_urls(self):
         custom = [
+            path("invoice-reconciliation/", self.admin_site.admin_view(self.invoice_reconciliation), name="invoice_reconciliation",),
             path("generate-auto-invoice/", self.admin_site.admin_view(self.generate_auto_invoice), name="generate_auto_invoice"),
             path("generate-monthly-invoices/", self.admin_site.admin_view(self.generate_monthly_invoices), name="generate_monthly_invoices"),  # ✅ add this
             path("<int:pk>/update_payment/", self.admin_site.admin_view(self.update_payment_view)),
             path("<int:pk>/approve-invoice/", self.admin_site.admin_view(self.approve_invoice_view)),
         ]
         return custom + super().get_urls()
+    
+    
+    #invoice reconciliation view for admin users to see the invoice summary and reconciliation report
+    def invoice_reconciliation(self, request):
+        print("Invoice Reconciliation View Called")
+        context = dict(
+            self.admin_site.each_context(request),
+        )
+
+        return render(request, "reports/invoice_summary_reconciliation.html",context,)
+    
+
+
+
 
     # ------------------------------------------------------------------
     # Custom views

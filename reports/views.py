@@ -1,4 +1,3 @@
-
 import calendar
 from datetime import datetime, timedelta
 from django.db.models import Count, Sum, Q, F, Max
@@ -169,6 +168,145 @@ class ReportNotLineItem(LoginRequiredMixin, generic.ListView):
         return context
 
 
+# class InvoiceSummaryReconciliationView(LoginRequiredMixin, generic.ListView):
+
+#     login_url = '/'
+#     # template_name = "reports/invoice_summary.html"
+#     template_name = "reports/invoice_summary_reconciliation.html"
+
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
+#         self.company = None
+    
+
+#     def get_queryset(self):
+#         today = datetime.today()
+#         if self.request.GET.get('company') and self.request.GET.get('date'):
+#             today = datetime.strptime(self.request.GET.get('date'), '%Y-%m-%d')
+#             self.company = CompanyDetails.objects.get(name=self.request.GET.get('company'))
+#         else:
+#             self.company = None
+#         month_start = today.replace(day=1)
+#         month_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+#         qs = InsertionOrders.objects.filter(
+#             start_date__lte=month_end, end_date__gte=month_start).order_by("sub_campaign__campaign__company__name", "-created_on")
+#         if self.company:
+#             qs = qs.filter(sub_campaign__campaign__company=self.company)
+#         return qs
+
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         self.request.current_app = 'Publisher_admin'
+#         context.update(admin_site.each_context(self.request))
+#         context.update({'company': CompanyDetails.objects.filter(is_active=True)})
+#         # context.update({'title': 'Line Item Performance'})
+#         context.update({'title': 'Invoice Summary Reconciliation'})
+    
+
+#         if self.request.GET.get('company') and self.request.GET.get('date'):
+#             invoice_on = datetime.strptime(self.request.GET.get('date'), '%Y-%m-%d')
+#             context.update({"invoice_on": invoice_on})
+#             # Plain `date` (not `datetime`) version of invoice_on's month, so the
+#             # template can compare it directly against reporting_dates entries
+#             # (which are also plain `date` objects) with <=, ==, etc.
+#             context.update({"invoice_month": invoice_on.date().replace(day=1)})
+
+#             qs = self.get_queryset()
+#             start_date = qs.dates('start_date', 'month').first()
+
+#             # ── FIX: previously reporting_dates stopped at invoice_on's month,
+#             # so July/August never appeared even when the matched orders'
+#             # flight dates (e.g. Jun 8 - Aug 31) ran well past June.
+#             # Now we extend the range through the LATEST end_date month among
+#             # the orders active in the selected month, so every month of the
+#             # flight gets a column (with planned/pending values) even before
+#             # actual delivery data exists for those future months.
+#             last_end_date = qs.dates('end_date', 'month').last()
+
+#             if start_date:
+#                 range_end = invoice_on
+#                 if last_end_date and (last_end_date.year, last_end_date.month) > (invoice_on.year, invoice_on.month):
+#                     range_end = last_end_date
+
+#                 reporting_dates = [x for x in month_year_iter(
+#                     start_date.month, start_date.year, range_end.month, range_end.year)]
+#                 context.update({"reporting_dates": reporting_dates})
+#             context.update({"currency": self.company})
+#         return context
+    
+
+class InvoiceSummaryReconciliationView(LoginRequiredMixin, generic.ListView):
+    login_url = '/'
+    template_name = "reports/invoice_summary_reconciliation.html"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.company = None
+
+    def get_queryset(self):
+        today = datetime.today()
+
+        # DATE now drives the month filter on its own — company is optional.
+        if self.request.GET.get('date'):
+            today = datetime.strptime(self.request.GET.get('date'), '%Y-%m-%d')
+
+        if self.request.GET.get('company'):
+            self.company = CompanyDetails.objects.get(name=self.request.GET.get('company'))
+        else:
+            self.company = None
+
+        month_start = today.replace(day=1)
+        month_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
+        qs = InsertionOrders.objects.filter(
+            start_date__lte=month_end, end_date__gte=month_start
+        ).order_by("sub_campaign__campaign__company__name", "-created_on")
+
+        if self.company:
+            qs = qs.filter(sub_campaign__campaign__company=self.company)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        self.request.current_app = 'Publisher_admin'
+        context.update(admin_site.each_context(self.request))
+        context.update({'company': CompanyDetails.objects.filter(is_active=True)})
+        context.update({'title': 'Invoice Summary Reconciliation'})
+
+        # Enrichment (reporting_dates / invoice_month / planned-variance-pacing)
+        # now triggers off DATE ALONE. Company stays optional:
+        #   - date only        -> all companies, this requirement (case 3)
+        #   - company + date   -> single company (already working, case 2)
+        #   - neither          -> plain listing, no pacing columns (case 1)
+        if self.request.GET.get('date'):
+            invoice_on = datetime.strptime(self.request.GET.get('date'), '%Y-%m-%d')
+            context.update({"invoice_on": invoice_on})
+            context.update({"invoice_month": invoice_on.date().replace(day=1)})
+
+            qs = self.get_queryset()
+            start_date = qs.dates('start_date', 'month').first()
+            last_end_date = qs.dates('end_date', 'month').last()
+
+            if start_date:
+                range_end = invoice_on
+                if last_end_date and (last_end_date.year, last_end_date.month) > (invoice_on.year, invoice_on.month):
+                    range_end = last_end_date
+
+                reporting_dates = [x for x in month_year_iter(
+                    start_date.month, start_date.year, range_end.month, range_end.year)]
+                context.update({"reporting_dates": reporting_dates})
+
+            # None when no company selected — template's {{currency.*}} lookups
+            # simply render blank (Django no-ops attribute access on None),
+            # matching image 1's blank "CPM ()" / "Budget Given ()" headers.
+            context.update({"currency": self.company})
+        return context
+
+
+
+
+
 class InvoiceSummaryReportView(LoginRequiredMixin, generic.ListView):
     login_url = '/'
     template_name = "reports/invoice_summary.html"
@@ -187,10 +325,12 @@ class InvoiceSummaryReportView(LoginRequiredMixin, generic.ListView):
         month_start = today.replace(day=1)
         month_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
         qs = InsertionOrders.objects.filter(
-            start_date__lte=month_end, end_date__gte=month_start).order_by("-created_on")
+            start_date__lte=month_end, end_date__gte=month_start).order_by("sub_campaign__campaign__company__name", "-created_on")
+        
         if self.company:
             qs = qs.filter(sub_campaign__campaign__company=self.company)
         return qs
+    
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -208,6 +348,7 @@ class InvoiceSummaryReportView(LoginRequiredMixin, generic.ListView):
                 context.update({"reporting_dates": reporting_dates})
             context.update({"currency": self.company})
         return context
+
 
 
 class SpendSummaryView(LoginRequiredMixin, generic.ListView):
@@ -371,19 +512,3 @@ class InvoiceOverDeliveredView(LoginRequiredMixin, generic.ListView):
             context.update({"currency": self.company})
         context.update({"is_juniors_logins": self.request.user.groups.filter(name="Juniors_logins").exists()})
         return context
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

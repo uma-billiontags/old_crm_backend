@@ -27,7 +27,7 @@ from insertion_order.views import generate_io, generate_io_date, custom_admin_vi
 from invoices import views
 from reports.views import UnderPacingLineItem, OverPacingLineItem, ReportNotLineItem, InvoiceSummaryReportView, \
     SpendSummaryView, CompanyForecastingSummaryView, CampaignForecastingSummaryView, InvoiceYetNotGeneratedView, \
-    InvoiceUnderDeliveredView, InvoiceOverDeliveredView
+    InvoiceUnderDeliveredView, InvoiceOverDeliveredView, InvoiceSummaryReconciliationView 
 
 urlpatterns = [
                   path('insertion_order/bulk-upload/', custom_admin_view, name="report_bulk_upload"), # Upload bulk data
@@ -44,6 +44,8 @@ urlpatterns = [
                   path('reports/over-pacing/', OverPacingLineItem.as_view(), name="over_pacing_report"),
                   path('reports/not-uploaded/', ReportNotLineItem.as_view(), name="not_uploaded_report"),
                   path('reports/invoice-summary/', InvoiceSummaryReportView.as_view(), name="not_uploaded_report"),
+                  #path('reports/invoice-summary-reconciliation/',views.InvoiceSummaryReconciliationView.as_view(),name='invoice-summary-reconciliation'),
+                  path('reports/invoice-summary-reconciliation/', InvoiceSummaryReconciliationView.as_view(), name='invoice-summary-reconciliation'),
                   
 
                   # Insertion order urls 
