@@ -1,5 +1,21 @@
 {% extends 'admin/change_list.html' %}
 {% load i18n static %}
+
+# Added by me
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Neutralize Django admin's default gray/orange "selected row" highlight
+       so ticking checkboxes doesn't distort the invoice list's own colors */
+    #changelist-form tr.selected,
+    #changelist-form tr.selected > th,
+    #changelist-form tr.selected > td {
+        background-color: transparent !important;
+        color: inherit !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row ">
     <div class="col-sm-6 col-lg-3">
@@ -43,6 +59,7 @@
         </div>
     </div>
 </div>
+
 {{ block.super }}
 {% endblock %}
 
@@ -100,6 +117,64 @@
         </div>
     </div>
 </div>
+
+<!-- Added by me -->
+<!-- Send Email Confirmation Modal -->
+<div class="modal" id="SendEmailModal">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Send Invoice Email</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div id="sendEmailError" class="alert alert-danger" style="display:none;"></div>
+
+                <div id="sendEmailContent" style="display:none;">
+                    <div class="form-group">
+                        <label><b>Invoice</b></label>
+                        <div id="se_invoice_no"></div>
+                    </div>
+                    <div class="form-group">
+                        <label><b>Company</b></label>
+                        <div id="se_company"></div>
+                    </div>
+                    <div class="form-group">
+                        <label><b>To</b></label>
+                        <div id="se_to"></div>
+                    </div>
+                    <div class="form-group">
+                        <label><b>CC</b></label>
+                        <div id="se_cc"></div>
+                    </div>
+                    <div class="form-group">
+                        <label><b>Campaign(s)</b></label>
+                        <ul id="se_campaigns"></ul>
+                    </div>
+                    <div class="form-group">
+                        <label><b>Attachments</b></label>
+                        <ul id="se_attachments"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                <button id="sendEmailConfirmBtn" type="button" class="btn btn-primary" style="display:none;"
+                        onclick="confirmSendEmail()">
+                    <span id="sendEmailSpinner" class="spinner-border spinner-border-sm mr-1" role="status"
+                        aria-hidden="true" style="display:none;"></span>
+                    <span id="sendEmailBtnText">Confirm & Send</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
 </div>
 
 {{ block.super }}
@@ -108,5 +183,5 @@
 
 {% block pagination %}
 {{ block.super }}
-<script src="{% static 'custom_admin/js/main.js' %}"></script>
+<script src="{% static 'custom_admin/js/main.js' %}?v=2"></script>
 {% endblock %}

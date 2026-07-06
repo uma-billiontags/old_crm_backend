@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
+from django.core.validators import validate_email # Added by me
+from django.core.exceptions import ValidationError #Added by me
 
 from categories.models import Country, Roles, PaymentTerms, InvoiceCompanyAddress, InvoiceBankDetails, InvoiceAuthorizedPerson
 
@@ -8,6 +10,16 @@ PAYMENT_TERM = (
     ("Post Payment", "Post Payment"),
 )
 
+# Added by me
+def validate_comma_separated_emails(value):
+    """Validates each email in a comma-separated list."""
+    emails = [e.strip() for e in value.split(",") if e.strip()]
+    for email in emails:
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise ValidationError(f"'{email}' is not a valid email address.")
+        
 
 class CompanyDetails(models.Model):
     objects = None
@@ -46,7 +58,20 @@ class CompanyDetails(models.Model):
     default_invoice_bank = models.ForeignKey(InvoiceBankDetails,blank=True,null=True,on_delete=models.SET_NULL, verbose_name="From bank account")
     default_authorized_person = models.ForeignKey(InvoiceAuthorizedPerson,blank=True,null=True,on_delete=models.SET_NULL, verbose_name = 'Authorized person')
 
-
+    # Added by me
+    default_email_send_to = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name="Default Email To",
+        # help_text="Comma-separated email addresses (e.g. a@x.com, b@x.com)",
+        validators=[validate_comma_separated_emails],
+    )
+    default_email_send_cc = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name="Default Email CC",
+        # help_text="Comma-separated email addresses (e.g. a@x.com, b@x.com)",
+        validators=[validate_comma_separated_emails],
+    )
+    
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 

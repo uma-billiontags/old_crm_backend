@@ -9,6 +9,351 @@ from insertion_order.models import IODetails
 from invoices import models
 from categories.models import AedExchangeRateMonth, AedExchangeRate
 
+# Added by me
+import io
+import calendar
+import xlsxwriter
+
+# Added by me
+def generate_bulk_invoice_campaign_report(invoices):
+    """
+    Same layout as generate_invoice_campaign_report (merged Company/Campaign
+    cells + Total row), but sources line items across MULTIPLE invoices —
+    used when several invoices are emailed together as one batch.
+    """
+    from itertools import groupby
+    from insertion_order.templatetags.reports import (
+        line_item_summary,
+        month_year_iter,
+    )
+
+    billing_items = list(models.BillingLineItems.objects.filter(
+        invoice__in=invoices
+    ).select_related(
+        "line_item__io__sub_campaign__campaign__company",
+        "line_item__ad_type",
+        "line_item__ethinicity",
+        "invoice",
+    ))
+
+    billing_items.sort(key=lambda bi: (
+        bi.line_item.io.sub_campaign.campaign.company.name,
+        bi.line_item.io.sub_campaign.name,
+        bi.line_item.id,
+    ))
+
+    io_details = [bi.line_item for bi in billing_items]
+    invoice_dates = [inv.invoice_on for inv in invoices]
+
+    if io_details:
+        range_start = min(d.start_date for d in io_details)
+    else:
+        range_start = min(inv.invoice_from for inv in invoices)
+    
+    range_end = max(inv.invoice_to for inv in invoices)   # cap at the latest invoice's own month
+
+    reporting_dates = list(month_year_iter(
+        range_start.month, range_start.year, range_end.month, range_end.year
+    ))
+
+    first_company = invoices[0].company
+    currency_code = first_company.billing_currency.iso_code_3 if first_company.billing_currency else ""
+
+    output = io.BytesIO()
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    worksheet = workbook.add_worksheet("Summary")
+
+    header_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+        'bg_color': '#D9E1F2', 'font_size': 10, 'text_wrap': True,
+    })
+    cell_format = workbook.add_format({
+        'border': 1, 'align': 'center', 'valign': 'vcenter', 'font_size': 10,
+    })
+    merge_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+        'font_size': 10, 'text_wrap': True,
+    })
+    money_format = workbook.add_format({
+        'border': 1, 'align': 'right', 'valign': 'vcenter', 'font_size': 10, 'num_format': '#,##0.00',
+    })
+    num_format = workbook.add_format({
+        'border': 1, 'align': 'right', 'valign': 'vcenter', 'font_size': 10, 'num_format': '#,##0',
+    })
+    total_label_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+        'font_size': 10, 'bg_color': '#F2F2F2',
+    })
+    total_money_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'right', 'valign': 'vcenter',
+        'font_size': 10, 'num_format': '#,##0.00', 'bg_color': '#F2F2F2',
+    })
+    total_num_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'right', 'valign': 'vcenter',
+        'font_size': 10, 'num_format': '#,##0', 'bg_color': '#F2F2F2',
+    })
+
+    headers = [
+        "Company", "Campaign Name", "IO Name", "Flight Dates", "Ad-Format", "Ethnicity",
+        "Billable Impressions", "CPM ({})".format(currency_code), "Budget Given ({})".format(currency_code),
+    ]
+    for reporting_date in reporting_dates:
+        label = reporting_date.strftime("%B %Y")
+        headers += [
+            "Billable Impressions - {}".format(label),
+            "Total Impressions - {}".format(label),
+            "Amount Spent - {} ({})".format(label, currency_code),
+        ]
+    headers += ["Amount Pending ({})".format(currency_code), "Billable Impressions Pending"]
+
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header, header_format)
+    worksheet.set_column(0, len(headers) - 1, 20)
+
+    total_billable_impression = 0
+    total_budget_given = 0
+    total_amount_pending = 0
+    total_billable_pending = 0
+    month_totals = [{"billable": 0, "delivered": 0, "amount": 0} for _ in reporting_dates]
+
+    def group_key(bi):
+        io_detail = bi.line_item
+        return (io_detail.io.sub_campaign.campaign.company_id, io_detail.io.sub_campaign_id)
+
+    row = 1
+    for _, group in groupby(billing_items, key=group_key):
+        group = list(group)
+        group_start_row = row
+        first_io = group[0].line_item
+        company = first_io.io.sub_campaign.campaign.company
+        campaign_label = first_io.io.sub_campaign.name
+
+        for billing_item in group:
+            io_detail = billing_item.line_item
+            reports = line_item_summary(io_detail, reporting_dates)
+
+            col = 2
+            worksheet.write(row, col, io_detail.description, cell_format); col += 1
+            worksheet.write(row, col, "{} - {}".format(
+                io_detail.start_date.strftime("%b %d, %Y"), io_detail.end_date.strftime("%b %d, %Y")
+            ), cell_format); col += 1
+            worksheet.write(row, col, str(io_detail.ad_type), cell_format); col += 1
+            worksheet.write(row, col, str(io_detail.ethinicity), cell_format); col += 1
+            worksheet.write(row, col, io_detail.volume, num_format); col += 1
+            worksheet.write(row, col, io_detail.unit_cost, money_format); col += 1
+            worksheet.write(row, col, io_detail.net_cost, money_format); col += 1
+
+            for i, month_report in enumerate(reports['month']):
+                worksheet.write(row, col, month_report['billable_impression'], num_format); col += 1
+                worksheet.write(row, col, month_report['delivered_impression'], num_format); col += 1
+                worksheet.write(row, col, month_report['amount'], money_format); col += 1
+                month_totals[i]["billable"] += month_report['billable_impression']
+                month_totals[i]["delivered"] += month_report['delivered_impression']
+                month_totals[i]["amount"] += month_report['amount']
+
+            worksheet.write(row, col, reports['balance_amount'], money_format); col += 1
+            worksheet.write(row, col, reports['balance_impression'], num_format); col += 1
+
+            total_billable_impression += io_detail.volume
+            total_budget_given += io_detail.net_cost
+            total_amount_pending += reports['balance_amount']
+            total_billable_pending += reports['balance_impression']
+
+            row += 1
+
+        group_end_row = row - 1
+        if group_end_row > group_start_row:
+            worksheet.merge_range(group_start_row, 0, group_end_row, 0, company.name, merge_format)
+            worksheet.merge_range(group_start_row, 1, group_end_row, 1, campaign_label, merge_format)
+        else:
+            worksheet.write(group_start_row, 0, company.name, merge_format)
+            worksheet.write(group_start_row, 1, campaign_label, merge_format)
+
+    worksheet.merge_range(row, 0, row, 5, "Total", total_label_format)
+    worksheet.write(row, 6, total_billable_impression, total_num_format)
+    worksheet.write(row, 7, "", total_label_format)
+    worksheet.write(row, 8, total_budget_given, total_money_format)
+    col = 9
+    for mt in month_totals:
+        worksheet.write(row, col, mt["billable"], total_num_format); col += 1
+        worksheet.write(row, col, mt["delivered"], total_num_format); col += 1
+        worksheet.write(row, col, mt["amount"], total_money_format); col += 1
+    worksheet.write(row, col, total_amount_pending, total_money_format); col += 1
+    worksheet.write(row, col, total_billable_pending, total_num_format)
+
+    workbook.close()
+    output.seek(0)
+    return output.read()
+
+# Added by me
+def generate_invoice_campaign_report(invoice):
+    """
+    Builds an in-memory Excel workbook matching the exact structure of the
+    'Invoice Summary' Download Excel button (merged Company/Campaign cells
+    + Total row), scoped to only the line items included in this invoice.
+    Returns raw bytes, ready to attach to an email.
+    """
+
+    from itertools import groupby
+    from insertion_order.templatetags.reports import (
+        line_item_summary,
+        month_year_iter,
+    )
+
+    billing_items = list(invoice.line_items.select_related(
+        "line_item__io__sub_campaign__campaign__company",
+        "line_item__ad_type",
+        "line_item__ethinicity",
+    ).all())
+
+    # Sort so rows land in the same order the grouping/merging expects
+    billing_items.sort(key=lambda bi: (
+        bi.line_item.io.sub_campaign.campaign.company.name,
+        bi.line_item.io.sub_campaign.name,
+        bi.line_item.id,
+    ))
+
+    io_details = [bi.line_item for bi in billing_items]
+
+    if io_details:
+        range_start = min(d.start_date for d in io_details)
+    else:
+        range_start = invoice.invoice_from
+    range_end = invoice.invoice_to   # cap at this invoice's own month, don't extend into future months
+
+    reporting_dates = list(month_year_iter(
+        range_start.month, range_start.year, range_end.month, range_end.year
+    ))
+
+    currency_code = invoice.company.billing_currency.iso_code_3 if invoice.company.billing_currency else ""
+
+    output = io.BytesIO()
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    worksheet = workbook.add_worksheet("Summary")
+
+    header_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+        'bg_color': '#D9E1F2', 'font_size': 10, 'text_wrap': True,
+    })
+    cell_format = workbook.add_format({
+        'border': 1, 'align': 'center', 'valign': 'vcenter', 'font_size': 10,
+    })
+    merge_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+        'font_size': 10, 'text_wrap': True,
+    })
+    money_format = workbook.add_format({
+        'border': 1, 'align': 'right', 'valign': 'vcenter', 'font_size': 10, 'num_format': '#,##0.00',
+    })
+    num_format = workbook.add_format({
+        'border': 1, 'align': 'right', 'valign': 'vcenter', 'font_size': 10, 'num_format': '#,##0',
+    })
+    total_label_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+        'font_size': 10, 'bg_color': '#F2F2F2',
+    })
+    total_money_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'right', 'valign': 'vcenter',
+        'font_size': 10, 'num_format': '#,##0.00', 'bg_color': '#F2F2F2',
+    })
+    total_num_format = workbook.add_format({
+        'bold': True, 'border': 1, 'align': 'right', 'valign': 'vcenter',
+        'font_size': 10, 'num_format': '#,##0', 'bg_color': '#F2F2F2',
+    })
+
+    headers = [
+        "Company", "Campaign Name", "IO Name", "Flight Dates", "Ad-Format", "Ethnicity",
+        "Billable Impressions", "CPM ({})".format(currency_code), "Budget Given ({})".format(currency_code),
+    ]
+    for reporting_date in reporting_dates:
+        label = reporting_date.strftime("%B %Y")
+        headers += [
+            "Billable Impressions - {}".format(label),
+            "Total Impressions - {}".format(label),
+            "Amount Spent - {} ({})".format(label, currency_code),
+        ]
+    headers += ["Amount Pending ({})".format(currency_code), "Billable Impressions Pending"]
+
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header, header_format)
+    worksheet.set_column(0, len(headers) - 1, 20)
+
+    # ---- Running totals for the Total row ----
+    total_billable_impression = 0
+    total_budget_given = 0
+    total_amount_pending = 0
+    total_billable_pending = 0
+    month_totals = [{"billable": 0, "delivered": 0, "amount": 0} for _ in reporting_dates]
+
+    def group_key(bi):
+        io_detail = bi.line_item
+        return (io_detail.io.sub_campaign.campaign.company_id, io_detail.io.sub_campaign_id)
+
+    row = 1
+    for _, group in groupby(billing_items, key=group_key):
+        group = list(group)
+        group_start_row = row
+        first_io = group[0].line_item
+        company = first_io.io.sub_campaign.campaign.company
+        campaign_label = first_io.io.sub_campaign.name
+
+        for billing_item in group:
+            io_detail = billing_item.line_item
+            reports = line_item_summary(io_detail, reporting_dates)
+
+            col = 2
+            worksheet.write(row, col, io_detail.description, cell_format); col += 1
+            worksheet.write(row, col, "{} - {}".format(
+                io_detail.start_date.strftime("%b %d, %Y"), io_detail.end_date.strftime("%b %d, %Y")
+            ), cell_format); col += 1
+            worksheet.write(row, col, str(io_detail.ad_type), cell_format); col += 1
+            worksheet.write(row, col, str(io_detail.ethinicity), cell_format); col += 1
+            worksheet.write(row, col, io_detail.volume, num_format); col += 1
+            worksheet.write(row, col, io_detail.unit_cost, money_format); col += 1
+            worksheet.write(row, col, io_detail.net_cost, money_format); col += 1
+
+            for i, month_report in enumerate(reports['month']):
+                worksheet.write(row, col, month_report['billable_impression'], num_format); col += 1
+                worksheet.write(row, col, month_report['delivered_impression'], num_format); col += 1
+                worksheet.write(row, col, month_report['amount'], money_format); col += 1
+                month_totals[i]["billable"] += month_report['billable_impression']
+                month_totals[i]["delivered"] += month_report['delivered_impression']
+                month_totals[i]["amount"] += month_report['amount']
+
+            worksheet.write(row, col, reports['balance_amount'], money_format); col += 1
+            worksheet.write(row, col, reports['balance_impression'], num_format); col += 1
+
+            total_billable_impression += io_detail.volume
+            total_budget_given += io_detail.net_cost
+            total_amount_pending += reports['balance_amount']
+            total_billable_pending += reports['balance_impression']
+
+            row += 1
+
+        group_end_row = row - 1
+        if group_end_row > group_start_row:
+            worksheet.merge_range(group_start_row, 0, group_end_row, 0, company.name, merge_format)
+            worksheet.merge_range(group_start_row, 1, group_end_row, 1, campaign_label, merge_format)
+        else:
+            worksheet.write(group_start_row, 0, company.name, merge_format)
+            worksheet.write(group_start_row, 1, campaign_label, merge_format)
+
+    # ---- Total row ----
+    worksheet.merge_range(row, 0, row, 5, "Total", total_label_format)
+    worksheet.write(row, 6, total_billable_impression, total_num_format)
+    worksheet.write(row, 7, "", total_label_format)
+    worksheet.write(row, 8, total_budget_given, total_money_format)
+    col = 9
+    for mt in month_totals:
+        worksheet.write(row, col, mt["billable"], total_num_format); col += 1
+        worksheet.write(row, col, mt["delivered"], total_num_format); col += 1
+        worksheet.write(row, col, mt["amount"], total_money_format); col += 1
+    worksheet.write(row, col, total_amount_pending, total_money_format); col += 1
+    worksheet.write(row, col, total_billable_pending, total_num_format)
+
+    workbook.close()
+    output.seek(0)
+    return output.read()
 
 def int_to_invoice(pk):
     try:

@@ -1,0 +1,85 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% include "daterangefilter/_load_momentjs.html" %}
+<link rel="stylesheet" href="{% static 'daterangefilter/daterangepicker/daterangepicker.css' %}" />
+<script src="{% static 'daterangefilter/daterangepicker/daterangepicker.min.js' %}"></script>
+<style>
+.daterangepicker .drp-calendar { max-width: inherit }
+.daterangepicker .ranges li { white-space: nowrap }
+</style>
+<input type="text" class="form-control" id="drp-{{ field_name }}" autocomplete="off" placeholder="{{ title|capfirst }}" />
+<script>
+django.jQuery('document').ready(function () {
+    {% if LANGUAGE_CODE != 'en-us' %}
+    if (!window.drpMomentInitialized) {
+        moment.locale('{{ LANGUAGE_CODE }}');
+        window.drpMomentInitialized = true;
+    }
+    {% endif %}
+    var $drp_input = $('#drp-{{ field_name }}');
+    // initialize date range picker widget
+    $drp_input.daterangepicker({
+        {% include "daterangefilter/ranges.html" %} //lgtm [js/syntax-error]
+        opens: 'center',
+        autoApply: true,
+        autoUpdateInput: false,
+        locale: {
+            monthNames: moment.months(),
+            customRangeLabel: '{% trans "Custom Range" %}'
+        }
+    });
+    // act on date range selection via widget
+    $drp_input.on('apply.daterangepicker', function(ev, picker) {
+        $(this).val(picker.startDate.format('L') + ' - ' + picker.endDate.format('L'));
+        $(this).trigger('change');
+    });
+    $drp_input.on('cancel.daterangepicker', function(ev, picker) {
+        $(this).val('');
+    });
+    // act on manual date range edit
+    $drp_input.on('change', function(ev) {
+        var $field = $(this);
+        var hidden_gte_id = 'drp-{{ field_name }}-gte';
+        var hidden_lte_id = 'drp-{{ field_name }}-lte';
+        var $hidden_gte = $('#' + hidden_gte_id);
+        var $hidden_lte = $('#' + hidden_lte_id);
+        var range = $field.val();
+        if (range !== "") {
+            var vals = range.split(' - ');
+            if (vals.length == 2) {
+                if (!$hidden_gte.length) {
+                    $hidden_gte = $('<input/>').attr('type', 'hidden').attr('id', hidden_gte_id);
+                    $field.after($hidden_gte);
+                }
+                if (!$hidden_lte.length) {
+                    $hidden_lte = $('<input/>').attr('type', 'hidden').attr('id', hidden_lte_id);
+                    $field.after($hidden_lte);
+                }
+                $hidden_gte.attr('name', '{{ field_name }}__gte');
+                $hidden_gte.val(moment(vals[0], 'L').format('YYYY-MM-DD'));
+                $hidden_lte.attr('name', '{{ field_name }}__lte');
+                $hidden_lte.val(moment(vals[1], 'L').format('YYYY-MM-DD'));
+                $field.addClass('active');
+                return;
+            }
+        }
+        if ($hidden_gte.length)
+            $hidden_gte.removeAttr('name');
+        if ($hidden_lte.length)
+            $hidden_lte.removeAttr('name');
+        $field.removeClass('active');
+    });
+    // set initial value
+    var range = "{{ choices.0.value }}";
+    if (range != "") {
+        var vals = range.split(' - ');
+        if (vals.length == 2) {
+            var picker = $drp_input.data('daterangepicker');
+            picker.setStartDate(moment(vals[0], 'YYYY-MM-DD'));
+            picker.setEndDate(moment(vals[1], 'YYYY-MM-DD'));
+            $drp_input.val(picker.startDate.format('L') + ' - ' + picker.endDate.format('L'));
+            $drp_input.trigger('change');
+        }
+    }
+});
+</script>

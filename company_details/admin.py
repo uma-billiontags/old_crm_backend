@@ -154,6 +154,12 @@ class CompanyDetailsAdmin(admin.ModelAdmin):
                 "default_contact_person",
                 "invoice_type"
             ),
+            
+             # Added by me
+            (
+            "default_email_send_to",
+            "default_email_send_cc"
+            ),  
 
             "created_on",
         )

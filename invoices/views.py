@@ -7,10 +7,34 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.utils.decorators import method_decorator
 from easy_pdf.views import PDFTemplateView
+from easy_pdf.rendering import render_to_pdf   # Added by me
 
 from invoices.utils import get_aed_conversion
 
 from invoices import utils
+
+# Added by me
+def get_invoice_pdf_bytes(invoice):
+    """
+    Renders the same invoice_template.html used by GenerateInvoiceView,
+    but returns raw PDF bytes directly — no HTTP request/response involved.
+    Used for email attachments.
+    """
+    utils.invoice_amount_calculation(invoice)
+
+    show_po = False
+    for campaign in invoice.campaigns.all():
+        if campaign.purchase_order_no:
+            show_po = True
+            break
+    context = {
+        "pagesize": "A4",
+        "invoice": invoice,
+        "show_po": show_po,
+    }
+
+    return render_to_pdf("invoice_template.html", context)
+
 
 # Version 1 — Old HTML view (just renders template)
 def generate_invoice(request, pk):
