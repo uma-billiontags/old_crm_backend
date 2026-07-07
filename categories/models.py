@@ -345,20 +345,21 @@ class AedExchangeRateMonth(models.Model):
 class AedExchangeRate(models.Model):
     objects = None
 
-    CURRENCY_CHOICES = (
-        ("USD", "USD"),
-        ("AUD", "AUD"),
-        ("CAD", "CAD"),
-        ("EUR", "EUR"),
-        ("NZD", "NZD"),    
-    )
+    # CURRENCY_CHOICES = (
+    #     ("USD", "USD"),
+    #     ("AUD", "AUD"),
+    #     ("CAD", "CAD"),
+    #     ("EUR", "EUR"),
+    #     ("NZD", "NZD"),    
+    # )
 
     month = models.ForeignKey(
         AedExchangeRateMonth,
         on_delete=models.CASCADE,
         related_name="rates"
     )
-    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
+    #currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
+    currency = models.ForeignKey("Currency", on_delete=models.PROTECT, limit_choices_to={"is_active": True})
     exchange_rate = models.DecimalField(
         max_digits=12, decimal_places=6,
         validators=[MinValueValidator(0)]
@@ -380,3 +381,19 @@ class AedExchangeRate(models.Model):
         return "{} - {} - {}".format(self.month, self.currency, self.exchange_rate)
     
 
+
+# Add Currency 
+
+class Currency(models.Model):
+    code = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["code"]
+        verbose_name = "Currency"
+        verbose_name_plural = "Currencies"
+
+    def __str__(self):
+        return self.code

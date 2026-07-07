@@ -1,3 +1,4 @@
+
 import calendar
 from datetime import datetime, timedelta
 
@@ -10,7 +11,6 @@ from easy_pdf.views import PDFTemplateView
 from easy_pdf.rendering import render_to_pdf   # Added by me
 
 from invoices.utils import get_aed_conversion
-
 from invoices import utils
 
 # Added by me
@@ -35,6 +35,7 @@ def get_invoice_pdf_bytes(invoice):
 
     return render_to_pdf("invoice_template.html", context)
 
+ #(Add Currency)
 
 # Version 1 — Old HTML view (just renders template)
 def generate_invoice(request, pk):
@@ -46,51 +47,18 @@ def generate_invoice(request, pk):
     data['invoice'] = invoice
     last_day = calendar.monthrange(today.year, today.month)[1]
     data['last_date'] = datetime(year=today.year, month=today.month, day=last_day)
-
     data['first_date'] = datetime(year=today.year, month=today.month, day=1)
 
     return render(request, "invoice_template.html", data)
 
 
-# # PDF Download (staff only) — uses easy_pdf library to render the same template as a PDF. This is the view linked to the "Download Invoice" button in the admin list display and change form.
-# @method_decorator(staff_member_required, name='dispatch')
-# class GenerateInvoiceView(PDFTemplateView, ):
-#     template_name = "invoice_template.html"
-
-#     def get(self, request, *args, **kwargs):
-#         response = super(GenerateInvoiceView, self).get(request, *args, **kwargs)
-#         if not self.request.user.has_perm('invoices.view_invoices'):
-#             return HttpResponseRedirect("/")
-#         return response
-
-#     def get_context_data(self, **kwargs):
-#         invoice = utils.int_to_invoice(self.kwargs['pk'])
-#         utils.invoice_amount_calculation(invoice)
-
-#         show_po = False
-#         for campaign in invoice.campaigns.all():
-#             if campaign.purchase_order_no:
-#                 show_po = True
-#                 break
-        
-#         # # --- Add this ---
-#         # aed_conversion = None
-#         # if self.request.GET.get("aed") == "1":
-#         #     aed_conversion = utils.get_aed_conversion(invoice)
-#         # # ----------------
-
-#         return super(GenerateInvoiceView, self).get_context_data(
-#             pagesize='A4',
-#             filename="{}.pdf".format(invoice, invoice),
-#             title='{}'.format(invoice),
-#             invoice=invoice,
-#             show_po=show_po,
-#            # aed_conversion=aed_conversion, 
-#             **kwargs)
-
-
-@method_decorator(staff_member_required, name='dispatch')
-class GenerateInvoiceView(PDFTemplateView, ):
+# PDF Download (staff only) — uses easy_pdf library to render the same
+# template as a PDF. This is the view linked to the "Download Invoice"
+# button in the admin list display and change form.
+#
+# Supports ?aed=1 query param to render the AED-converted invoice template
+# with an extra "Total amount due in AED" line, using invoices.utils.get_aed_conversion().
+class GenerateInvoiceView(PDFTemplateView):
     template_name = "invoice_template.html"
 
     def get(self, request, *args, **kwargs):
@@ -100,10 +68,7 @@ class GenerateInvoiceView(PDFTemplateView, ):
         else:
             self.template_name = "invoice_template.html"
 
-        response = super(GenerateInvoiceView, self).get(request, *args, **kwargs)
-        if not self.request.user.has_perm('invoices.view_invoices'):
-            return HttpResponseRedirect("/")
-        return response
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         invoice = utils.int_to_invoice(self.kwargs['pk'])
@@ -119,23 +84,18 @@ class GenerateInvoiceView(PDFTemplateView, ):
         if self.request.GET.get("aed") == "1":
             aed_conversion = utils.get_aed_conversion(invoice)
 
-        return super(GenerateInvoiceView, self).get_context_data(
+        return super().get_context_data(
             pagesize='A4',
-            filename="{}.pdf".format(invoice, invoice),
-            title='{}'.format(invoice),
+            filename=f"{invoice}.pdf",
+            title=str(invoice),
             invoice=invoice,
             show_po=show_po,
             aed_conversion=aed_conversion,
-            **kwargs)
+            **kwargs
+        )
 
 
-
-
-
-
-
-
-# Version 3 — PDF download (alternate template) 
+# Version 3 — PDF download (alternate template)
 class GenerateInvoice2View(PDFTemplateView):
     template_name = "invoice_template2.html"
 
@@ -158,3 +118,73 @@ class AppointmentLetterPdfView(PDFTemplateView):
         return super(AppointmentLetterPdfView, self).get_context_data(
             pagesize='A4',
             **kwargs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

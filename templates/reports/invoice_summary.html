@@ -80,10 +80,10 @@
             </th>
             <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Ad-Format</th>
             <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Ethnicity</th>
-            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Billable Impressions</th>
+            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Total Booked Impressions</th>
             <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true" style="min-width:120px">CPM ({{currency.billing_currency.iso_code_3}})
             </th>
-            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Budget Given
+            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Total Given Budget
                 ({{currency.billing_currency.iso_code_3}})
             </th>
             {% for reporting_date in reporting_dates%}
@@ -98,10 +98,10 @@
                 ({{currency.billing_currency.iso_code_3}})
             </th>
             {% endfor %}
-            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true" style="min-width:120px">Amount
-                Pending ({{currency.billing_currency.iso_code_3}})
+            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true" style="min-width:120px">Pending
+                Amount({{currency.billing_currency.iso_code_3}})
             </th>
-            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Billable Impressions Pending
+            <th data-a-wrap="true" data-a-v="center" data-a-h="center" data-f-bold="true">Pending Billable Impressions
             </th>
         </tr>
         </thead>

@@ -149,16 +149,54 @@ class OverPacingLineItem(LoginRequiredMixin, generic.TemplateView):
         return context
 
 
+# class ReportNotLineItem(LoginRequiredMixin, generic.ListView):
+#     login_url = '/'
+#     template_name = "reports/report_not_available.html"
+#     paginate_by = 20
+
+#     def get_queryset(self):
+#         today = datetime.today().date()
+#         return IODetails.objects.filter(
+#             start_date__lte=today, end_date__gte=today
+#         ).exclude(reports__report_on=today - timedelta(days=1)).order_by("-end_date")
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         self.request.current_app = 'Publisher_admin'
+#         context.update(admin_site.each_context(self.request))
+#         context.update({"date": datetime.today() - timedelta(days=1)})
+#         return context
+
+
+
+
+# Third change 
 class ReportNotLineItem(LoginRequiredMixin, generic.ListView):
     login_url = '/'
     template_name = "reports/report_not_available.html"
     paginate_by = 20
 
     def get_queryset(self):
-        today = datetime.today().date()
+        yesterday = datetime.today().date() - timedelta(days=1)
+
+        # FIX 1: previously this filtered on "active TODAY" (start_date__lte=today,
+        # end_date__gte=today) but excluded reports missing for YESTERDAY.
+        # That mismatch meant line items whose flight starts TODAY (so they were
+        # never active yesterday, and could never have uploaded a report for
+        # yesterday) were incorrectly flagged as "not uploaded".
+        #
+        # Now both checks use the SAME reference date (yesterday):
+        #   1. Was this line item's flight actually running yesterday?
+        #   2. Does it have no report row for yesterday?
+        #
+        # FIX 2: exclude line items whose status is "Stopped" — a stopped line
+        # item was manually paused and isn't expected to keep getting fresh
+        # reports uploaded, so it shouldn't show up as a "missing upload" alert.
         return IODetails.objects.filter(
-            start_date__lte=today, end_date__gte=today
-        ).exclude(reports__report_on=today - timedelta(days=1)).order_by("-end_date")
+            start_date__lte=yesterday, end_date__gte=yesterday
+        ).exclude(
+            reports__report_on=yesterday
+        ).exclude(status__in=["Stopped", "Paused"]).order_by("-end_date")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -168,73 +206,6 @@ class ReportNotLineItem(LoginRequiredMixin, generic.ListView):
         return context
 
 
-# class InvoiceSummaryReconciliationView(LoginRequiredMixin, generic.ListView):
-
-#     login_url = '/'
-#     # template_name = "reports/invoice_summary.html"
-#     template_name = "reports/invoice_summary_reconciliation.html"
-
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
-#         self.company = None
-    
-
-#     def get_queryset(self):
-#         today = datetime.today()
-#         if self.request.GET.get('company') and self.request.GET.get('date'):
-#             today = datetime.strptime(self.request.GET.get('date'), '%Y-%m-%d')
-#             self.company = CompanyDetails.objects.get(name=self.request.GET.get('company'))
-#         else:
-#             self.company = None
-#         month_start = today.replace(day=1)
-#         month_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
-#         qs = InsertionOrders.objects.filter(
-#             start_date__lte=month_end, end_date__gte=month_start).order_by("sub_campaign__campaign__company__name", "-created_on")
-#         if self.company:
-#             qs = qs.filter(sub_campaign__campaign__company=self.company)
-#         return qs
-
-
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         self.request.current_app = 'Publisher_admin'
-#         context.update(admin_site.each_context(self.request))
-#         context.update({'company': CompanyDetails.objects.filter(is_active=True)})
-#         # context.update({'title': 'Line Item Performance'})
-#         context.update({'title': 'Invoice Summary Reconciliation'})
-    
-
-#         if self.request.GET.get('company') and self.request.GET.get('date'):
-#             invoice_on = datetime.strptime(self.request.GET.get('date'), '%Y-%m-%d')
-#             context.update({"invoice_on": invoice_on})
-#             # Plain `date` (not `datetime`) version of invoice_on's month, so the
-#             # template can compare it directly against reporting_dates entries
-#             # (which are also plain `date` objects) with <=, ==, etc.
-#             context.update({"invoice_month": invoice_on.date().replace(day=1)})
-
-#             qs = self.get_queryset()
-#             start_date = qs.dates('start_date', 'month').first()
-
-#             # ── FIX: previously reporting_dates stopped at invoice_on's month,
-#             # so July/August never appeared even when the matched orders'
-#             # flight dates (e.g. Jun 8 - Aug 31) ran well past June.
-#             # Now we extend the range through the LATEST end_date month among
-#             # the orders active in the selected month, so every month of the
-#             # flight gets a column (with planned/pending values) even before
-#             # actual delivery data exists for those future months.
-#             last_end_date = qs.dates('end_date', 'month').last()
-
-#             if start_date:
-#                 range_end = invoice_on
-#                 if last_end_date and (last_end_date.year, last_end_date.month) > (invoice_on.year, invoice_on.month):
-#                     range_end = last_end_date
-
-#                 reporting_dates = [x for x in month_year_iter(
-#                     start_date.month, start_date.year, range_end.month, range_end.year)]
-#                 context.update({"reporting_dates": reporting_dates})
-#             context.update({"currency": self.company})
-#         return context
-    
 
 class InvoiceSummaryReconciliationView(LoginRequiredMixin, generic.ListView):
     login_url = '/'

@@ -9,7 +9,7 @@ from django.contrib.admin import AdminSite  # custom admin panel
 from categories import models
 from categories.models import PerformanceSubCategory, PerformanceCategory, InvoiceBankDetails, InvoiceCompanyAddress, \
     InvoiceAuthorizedPerson
-
+from categories.models import Currency
 
 
 # Custom Admin Site
@@ -235,3 +235,13 @@ class AedExchangeRateMonthAdmin(admin.ModelAdmin):
             instance.save()
 
         formset.save_m2m()
+
+
+@admin.register(Currency, site=admin_site)
+class CurrencyAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active")
+    #print("Currency Admin Loaded")
+    search_fields = ("code", "name")
+
+    def has_delete_permission(self, request, obj=None):
+        return False

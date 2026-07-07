@@ -67,7 +67,7 @@ class SuitConfig(DjangoSuitConfig):
             ChildItem(model='categories.roles'),
             ChildItem(model='categories.teams'),
             ChildItem(model='categories.performancecategory'),
-            #ChildItem(model='categories.currency', label="Currency"), 
+            ChildItem(model='categories.currency', label="Currency"),
             ChildItem(model='categories.aedexchangeratemonth', label="AED Exchange Rates"),
         ], icon='fa fa-leaf'),
         ParentItem('Invoice Reports', children=[

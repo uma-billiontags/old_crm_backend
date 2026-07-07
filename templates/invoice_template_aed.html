@@ -320,16 +320,16 @@
                             <td style="vertical-align: center">Total amount due in
                                 {{invoice.company.billing_currency.iso_code_3}}
                             </td>
+
                             <th style="vertical-align: center; text-align:right">
                                 {{invoice.company.billing_currency.currency_symbols}}
                                 {{invoice.total_pay_amount|intcomma}}
                             </th>
-                            </tr>
                             {% if aed_conversion %}
                             <tr>
                                 <td>Total amount due in AED</td>
                                 <td style="text-align:right">
-                                     <strong>{{ aed_conversion.aed_amount|intcomma }}</strong>
+                                     <strong>AED {{ aed_conversion.aed_amount|intcomma }}</strong>
                                 </td>
                             </tr>
                             {% endif %}

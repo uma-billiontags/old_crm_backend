@@ -93,9 +93,9 @@ document.getElementById('downloadExcelBtn').addEventListener('click', function()
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">Flight Dates</th>
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Ad-Format</th>
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Ethnicity</th>
-            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Billable Impressions</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Total Booked Impressions</th>
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">CPM ({{currency.billing_currency.iso_code_3}})</th>
-            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Budget Given ({{currency.billing_currency.iso_code_3}})</th>
+            <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">Total Given Budget({{currency.billing_currency.iso_code_3}})</th>
 
             {% for reporting_date in reporting_dates %}
             {% if reporting_date <= invoice_month %}
@@ -103,7 +103,7 @@ document.getElementById('downloadExcelBtn').addEventListener('click', function()
                 Billable Impressions - {{reporting_date|date:"F Y"}}
             </th>
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">
-                Total Impressions - {{reporting_date|date:"F Y"}}
+                Delivered Impressions - {{reporting_date|date:"F Y"}}
             </th>
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">
                 Amount Spent - {{reporting_date|date:"F Y"}} ({{currency.billing_currency.iso_code_3}})
@@ -123,10 +123,10 @@ document.getElementById('downloadExcelBtn').addEventListener('click', function()
             {% endfor %}
 
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true" style="min-width:120px">
-                Amount Pending ({{currency.billing_currency.iso_code_3}})
+                Pending Amount ({{currency.billing_currency.iso_code_3}})
             </th>
             <th data-a-wrap="true" data-a-v="middle" data-a-h="center" data-f-bold="true">
-                Billable Impressions Pending
+                Pending Billable Impressions 
             </th>
         </tr>
         </thead>
