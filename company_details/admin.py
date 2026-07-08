@@ -170,24 +170,6 @@ class CompanyDetailsForm(forms.ModelForm):
         return self._clean_default_email_field("default_email_send_cc")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class CompanyDetailsAdminForm(CompanyDetailsForm):
 
     class Meta:
@@ -278,9 +260,6 @@ class CompanyDetailsAdmin(admin.ModelAdmin):
             request,
             **kwargs
         )
-
-
-
 
     list_display = ("client_id", "name", "phone_number", "payment_type", "payment_term", "country",
                     "company_billing_currency", "is_active", "wallet_amount", "credited_amount", "debited_amount",

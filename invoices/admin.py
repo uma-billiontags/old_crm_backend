@@ -32,85 +32,12 @@ from django.utils.html import strip_tags
 from django.core.exceptions import ValidationError
 
 
-
-# Added by me
-def _build_single_email_body(invoice, show_campaign_override=None):
-    """Returns (plain_body, html_body) for the single-invoice email —
-    used to pre-fill the editable body box in the preview modal."""
-    plain_block, html_block = _invoice_email_blocks(invoice, show_campaign_override=show_campaign_override)
-
-    plain_body = (
-        "Hi Team,\n\n"
-        "I have attached the campaign Invoice and summary report for the period {} to {}.\n\n"
-        "Please verify the reports and give approval for the same.\n\n"
-        "{}\n"
-        "Please review and confirm.\n\n"
-        "Thanks & Regards,\n"
-        "Billiontags Team"
-    ).format(invoice.invoice_from.strftime("%d %b, %Y"), invoice.invoice_to.strftime("%d %b, %Y"), plain_block)
-
-    html_body = (
-        "Hi Team,<br><br>"
-        "I have attached the campaign Invoice and summary report for the period {} to {}.<br><br>"
-        "Please verify the reports and give approval for the same.<br><br>"
-        "{}<br>"
-        "Please review and confirm.<br><br>"
-        "Thanks &amp; Regards,<br>"
-        "Billiontags Team"
-    ).format(invoice.invoice_from.strftime("%d %b, %Y"), invoice.invoice_to.strftime("%d %b, %Y"), html_block)
-
-    return plain_body, html_body
-
-
-# Added by me
-def _build_bulk_email_body(invoices, show_campaign_override=None):
-    plain_blocks, html_blocks = [], []
-    for invoice in invoices:
-        p, h = _invoice_email_blocks(invoice, show_campaign_override=show_campaign_override)
-        plain_blocks.append(p)
-        html_blocks.append(h)
-
-    plain_body = (
-        "Hi Team,\n\nI have attached the campaign Invoices and summary report for the period {} to {}.\n\n"
-        "Please verify the reports and give approval for the same.\n\n{}\n"
-        "Please review and confirm.\n\nThanks & Regards,\nBilliontags Team"
-    ).format(invoices[0].invoice_from.strftime("%d %b, %Y"), invoices[0].invoice_to.strftime("%d %b, %Y"),
-             "\n".join(plain_blocks))
-
-    html_body = (
-        "Hi Team,<br><br>I have attached the campaign Invoices and summary report for the period {} to {}.<br><br>"
-        "Please verify the reports and give approval for the same.<br><br>{}"
-        "Please review and confirm.<br><br>Thanks &amp; Regards,<br>Billiontags Team"
-    ).format(invoices[0].invoice_from.strftime("%d %b, %Y"), invoices[0].invoice_to.strftime("%d %b, %Y"),
-             "<br>".join(html_blocks))
-
-    return plain_body, html_body
-
-
 # Added by me
 def _html_to_plain(html):
     """Rough HTML->plain-text fallback for the multipart email, used when
     the user has edited the body in the modal (we only get their HTML back)."""
     text = html.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
     return strip_tags(text)
-
-# Added by me
-def _build_single_invoice_subject(invoice):
-    company = invoice.company
-    return "{} Invoice {} - {}".format(
-        company.name, invoice.invoice_from.strftime("%B %Y"), invoice.invoice_no
-    )
-
-# Added by me
-def _build_bulk_invoice_subject(invoices):
-    company = invoices[0].company
-    return "{} Invoices {} - {}".format(
-        company.name, invoices[0].invoice_from.strftime("%B %Y"), invoices[-1].invoice_no
-    )
-
-
-
-
 
 # Added by me
 # Create the Campaign name in the email as red color  
@@ -136,10 +63,6 @@ def _campaign_lines_html(invoice, show_campaign_override=None):
             )
         )
     return "<br>".join(lines) if lines else "-"
-
-
-
-
 
 # Added by me
 # This function generates the plain text and HTML blocks for an invoice email, including billing cycle, amount, campaign names, and due date. It is used for both single-invoice emails and bulk emails.
@@ -189,8 +112,6 @@ def _invoice_email_blocks(invoice, show_campaign_override=None):
     )
     
     return plain_block, html_block
-
-
 
 # Added by me
 def _safe_filename_part(text):
@@ -785,7 +706,6 @@ class InvoicesAdmin(admin.ModelAdmin):
     filter_horizontal = ("campaigns",)
      # Added by me
     actions = ["noop_action"]  # kept only so Django still renders the row checkboxes
-    # actions = ["send_bulk_invoice_email"] # Added by me
 
     fieldsets = (
         (None, {
@@ -799,17 +719,7 @@ class InvoicesAdmin(admin.ModelAdmin):
             )
         }),
     )
-    
-    # # Added by me
-    # def send_bulk_invoice_email(self, request, queryset):
-    #     self.message_user(
-    #         request,
-    #         "Please use the 'Send Email' button in the row instead of this dropdown action.",
-    #         level=messages.INFO,
-    #     )
-    # send_bulk_invoice_email.short_description = "Send Invoice Email (use Send Email button instead)"
-
-    
+        
     # Added by me
     # Dummy action, never actually shown/used.
     # Its only job is to make Django register `actions`, which is what
@@ -817,9 +727,6 @@ class InvoicesAdmin(admin.ModelAdmin):
     def noop_action(self, request, queryset):
         pass
     noop_action.short_description = "———"    
-
-
-
 
     # ------------------------------------------------------------------
     # Inject request into InvoiceAdminForm
@@ -879,9 +786,6 @@ class InvoicesAdmin(admin.ModelAdmin):
             
         ]
         return custom + super().get_urls()
-
-
-    
     
     # Added by me
     def save_company_emails_view(self, request, company_id):
@@ -909,9 +813,6 @@ class InvoicesAdmin(admin.ModelAdmin):
         company.save(update_fields=["default_email_send_to", "default_email_send_cc"])
 
         return JsonResponse({"status": True, "message": "Email settings saved."})
-
-
-    
 
     # Added by me
     def send_bulk_email_preview(self, request):
@@ -965,8 +866,6 @@ class InvoicesAdmin(admin.ModelAdmin):
             "email_body_html_with_campaign": html_body_with,        
             "email_body_html_without_campaign": html_body_without,  
         })
-
-
 
     # Added by me
     def send_bulk_email_view(self, request):
@@ -1077,7 +976,6 @@ class InvoicesAdmin(admin.ModelAdmin):
             "email_body_html_without_campaign": html_body_without,  # Added by me
         })
 
-
     # Added by me
     # Actual send — stub for now, real send_mail logic comes in Step 4
     def send_email_view(self, request, pk):
@@ -1146,10 +1044,6 @@ class InvoicesAdmin(admin.ModelAdmin):
 
         return JsonResponse({"status": True, "message": "Email sent successfully to {}".format(", ".join(to_emails))})
     
-
-
-
-    
     #invoice reconciliation view for admin users to see the invoice summary and reconciliation report
     def invoice_reconciliation(self, request):
         print("Invoice Reconciliation View Called")
@@ -1158,10 +1052,6 @@ class InvoicesAdmin(admin.ModelAdmin):
         )
 
         return render(request, "reports/invoice_summary_reconciliation.html",context,)
-    
-
-
-
 
     # ------------------------------------------------------------------
     # Custom views
@@ -1172,8 +1062,6 @@ class InvoicesAdmin(admin.ModelAdmin):
         invoice = utils.int_to_invoice(pk)
         invoice.is_approved = True
         invoice.save(update_fields=["is_approved"])
-        #return redirect("../..")
-
 
         # Added by me 
         # AJAX calls get JSON back instead of a redirect,
@@ -1818,9 +1706,6 @@ class InvoicesAdmin(admin.ModelAdmin):
         return JsonResponse({"status": True, "message": ", ".join(parts)})
 
 
-
-
-
     # update payment view — allows staff to add a payment transaction for the invoice. This is an inline form separate from the main invoice edit form, and is accessible via the "Update Payment" button in the list display. When a new payment is added, it also checks if the total paid amount has reached or exceeded the total payable amount, and if so, automatically updates the invoice status to "Paid".
     def update_payment_view(self, request, pk):
         if request.method == "POST":
@@ -1907,9 +1792,6 @@ class InvoicesAdmin(admin.ModelAdmin):
             old_campaigns = obj.campaigns.all()
             new_campaigns = form.cleaned_data["campaigns"].all()
             deleted_set, _ = perform_operation(old_campaigns, new_campaigns)
-        
-   
-        
 
         # Step 4: Calculate all line item amounts
         super().save_model(request, obj, form, change)
@@ -2025,23 +1907,7 @@ class InvoicesAdmin(admin.ModelAdmin):
 
     view_aed_invoice.short_description = "AED Invoice"
 
-
-
-
-
-
-    # def invoice_approval(self, obj):
-    #     if not obj.is_approved:
-    #         return mark_safe(
-    #             "<a href='{id}/approve-invoice/' "
-    #             "class='btn btn-sm btn-outline-secondary'>Approve Invoice</a>".format(id=obj.id)
-    #         )
-    #     return mark_safe("<span class='btn btn-sm btn-outline-success'>Approved</span>")
-
-    # invoice_approval.short_description = "Manager Approval"
-
-
-       # Added by me
+    # Added by me
     def invoice_approval(self, obj):
         if not obj.is_approved:
             return mark_safe(
@@ -2051,11 +1917,6 @@ class InvoicesAdmin(admin.ModelAdmin):
         return mark_safe("<span class='btn btn-sm btn-outline-success'>Approved</span>")
 
     invoice_approval.short_description = "Manager Approval"
-
-
-
-
-
 
     # Added by me
     def send_email(self, obj):
@@ -2080,11 +1941,6 @@ class InvoicesAdmin(admin.ModelAdmin):
         )
 
     update_payment.short_description = "Update Payment"
-
-
-
-
-
 
 # Added by me
 from company_details.models import validate_comma_separated_emails, CompanyContacts
@@ -2113,8 +1969,274 @@ def _validate_default_email_field(company, value):
             )
     return None
 
+# Added by me
+# ============================================================================
+# COMPANY-SPECIFIC EMAIL TEMPLATES
+# ----------------------------------------------------------------------------
+# Company name is matched case-insensitively, trimmed. Keys must exactly
+# match CompanyDetails.name (once lowercased/stripped) for that company to
+# get its custom template instead of the DEFAULT_EMAIL_TEMPLATE.
+COMPANY_EMAIL_TEMPLATES = {
+
+    "multicall pty ltd": {
+        "subject": lambda inv: "Multiconnexions Invoice ({}) {} - Reg".format(
+            inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "contact_person",  # pulled from invoice.contact_person.name
+        "paragraphs": lambda inv: [
+            "I have attached the campaign summary report and invoice provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_from.strftime("%d/%m/%Y"), inv.invoice_to.strftime("%d/%m/%Y")
+            ),
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+        ],
+    },
+
+    "ethnicity multicultural marketing inc.": {
+        "subject": lambda inv: "Ethnicity Matters Invoice {} - Reg".format(
+            inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "Team",
+        "paragraphs": lambda inv: [
+            "I have attached the campaign Invoice and summary report provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_from.strftime("%d/%m/%Y"), inv.invoice_to.strftime("%d/%m/%Y")
+            ),
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+        ],
+    },
+
+    "alcance media group llc": {
+        "subject": lambda inv: "Alcance Invoice ({}) {} - Reg".format(
+            inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "contact_person",  # pulled from invoice.contact_person.name
+        "paragraphs": lambda inv: [
+            "Please find the attached Invoice, Summary and IO for {} {}.".format(
+                # work_order_no on Campaigns = "Client Campaign ID" (e.g. AMG2548)
+                ", ".join(
+                    filter(None, inv.campaigns.values_list("work_order_no", flat=True))
+                ) or "N/A",
+                inv.invoice_from.strftime("%B %Y"),
+            ),
+        ],
+    },
+
+    "groupm canada inc dba essencemediacom canada": {
+        "subject": lambda inv: "Essencemediacom Canada Invoice {} - Reg".format(
+            inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "Team",
+        "paragraphs": lambda inv: [
+            "I have attached the campaign summary report provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_from.strftime("%d/%m/%Y"), inv.invoice_to.strftime("%d/%m/%Y")
+            ),
+            "Remarks:",
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+        ],
+    },
+
+    "home depot of canada inc": {
+        "subject": lambda inv: "Home Depot of Canada Inc Invoice & Summary {} {} - Reg".format(
+            inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "Team",
+        "paragraphs": lambda inv: [
+            "I have attached the campaign Invoice & summary report ( {} ) provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_no,
+                inv.invoice_from.strftime("%d/%m/%Y"),
+                inv.invoice_to.strftime("%d/%m/%Y"),
+            ),
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+        ],
+    },
+
+    "leba ethnic media": {
+        "subject": lambda inv: "Leba Ethnic Media Summary & Invoice No ({}) - {} - Reg".format(
+            inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "contact_person",  # pulled from invoice.contact_person.name
+        "paragraphs": lambda inv: [
+            "I have attached the campaign Invoice & summary report provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_from.strftime("%d/%m/%Y"), inv.invoice_to.strftime("%d/%m/%Y")
+            ),
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+        ],
+    },
+
+    "captus advertising": {
+        "subject": lambda inv: "Captus Advertising Invoice & Summary {} {} - Reg".format(
+            inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "Team",
+        "paragraphs": lambda inv: [
+            "I have attached the campaign Invoice & summary report ( {} ) provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_no,
+                inv.invoice_from.strftime("%d/%m/%Y"),
+                inv.invoice_to.strftime("%d/%m/%Y"),
+            ),
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+        ],
+    },
+
+    "s&j media group": {
+        "subject": lambda inv: "S&J Media Invoice ({}) {} - Reg".format(
+            inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+        ),
+        "greeting": "contact_person",  # pulled from invoice.contact_person.name
+        "paragraphs": lambda inv: [
+            "I have attached the campaign reports and Invoice provided by Praveen "
+            "for the period {} to {}.".format(
+                inv.invoice_from.strftime("%d/%m/%Y"), inv.invoice_to.strftime("%d/%m/%Y")
+            ),
+            "Please verify the reports and give approval for the same.",
+            "Do reach out to Praveen, if you need any clarification.",
+            "PFA Invoices for your reference",
+        ],
+    },
+}
+
+# Added by me
+# Applies to every company NOT in COMPANY_EMAIL_TEMPLATES above.
+# NOTE: greeting set to "Team" (matches your existing generic template).
+# See the callout above this file about the "Hi Sanchay" ambiguity in your
+# pasted default -- change this to whatever you confirm.
+DEFAULT_EMAIL_TEMPLATE = {
+    "subject": lambda inv: "{} Invoice ({}) {} - Reg".format(
+        inv.company.name, inv.invoice_no, inv.invoice_from.strftime("%B %Y")
+    ),
+    "greeting": "contact_person",
+    "paragraphs": lambda inv: [
+        "I have attached the campaign summary report and invoice provided by Praveen "
+        "for the period {} to {}.".format(
+            inv.invoice_from.strftime("%d/%m/%Y"), inv.invoice_to.strftime("%d/%m/%Y")
+        ),
+        "Please verify the reports and give approval for the same.",
+        "Do reach out to Praveen, if you need any clarification.",
+    ],
+}
+
+# Added by me
+def _get_company_email_template(company):
+    """Looks up the custom template by company name (case-insensitive,
+    trimmed). Falls back to DEFAULT_EMAIL_TEMPLATE for any of your other
+    companies not in the list of 8."""
+    key = (company.name or "").strip().lower()
+    return COMPANY_EMAIL_TEMPLATES.get(key, DEFAULT_EMAIL_TEMPLATE)
+
+# Added by me
+def _resolve_greeting_name(template, invoice):
+    """Turns a template's 'greeting' entry into the actual name used in
+    'Hi {name},'. Special-cases "contact_person" to pull the first name
+    off invoice.contact_person (falls back to "Team" if that's missing)."""
+    greeting = template.get("greeting", "Team")
+    if greeting == "contact_person":
+        contact = invoice.contact_person
+        if contact and contact.name:
+            return contact.name.strip().split(" ")[0]
+        return "Team"
+    return greeting
 
 
+# Added by me
+def _build_single_email_body(invoice, show_campaign_override=None):
+    """Returns (plain_body, html_body) for the single-invoice email —
+    used to pre-fill the editable body box in the preview modal.
+
+    Uses the company's custom template if one is registered in
+    COMPANY_EMAIL_TEMPLATES, else falls back to DEFAULT_EMAIL_TEMPLATE."""
+    plain_block, html_block = _invoice_email_blocks(invoice, show_campaign_override=show_campaign_override)
+
+    template = _get_company_email_template(invoice.company)
+    greeting_name = _resolve_greeting_name(template, invoice)
+    paragraphs = template["paragraphs"](invoice)
+
+    plain_paragraphs = "\n\n".join(paragraphs)
+    html_paragraphs = "<br><br>".join(paragraphs)
+
+    plain_body = (
+        "Hi {},\n\n"
+        "{}\n\n"
+        "{}\n"
+        "Please review and confirm.\n\n"
+        "Thanks & Regards,\n"
+        "Billiontags Team"
+    ).format(greeting_name, plain_paragraphs, plain_block)
+
+    html_body = (
+        "Hi {},<br><br>"
+        "{}<br><br>"
+        "{}<br>"
+        "Please review and confirm.<br><br>"
+        "Thanks &amp; Regards,<br>"
+        "Billiontags Team"
+    ).format(greeting_name, html_paragraphs, html_block)
+
+    return plain_body, html_body
+
+
+# Added by me
+def _build_bulk_email_body(invoices, show_campaign_override=None):
+    """Same company-template lookup as the single-invoice version, but the
+    footer (Billing Cycle/Amount/Due Date) block is repeated once per
+    invoice, same as before. The company/greeting/subject template is
+    resolved once from invoices[0] since a bulk send is always scoped to
+    a single company (enforced upstream in send_bulk_email_preview /
+    send_bulk_email_view)."""
+    plain_blocks, html_blocks = [], []
+    for invoice in invoices:
+        p, h = _invoice_email_blocks(invoice, show_campaign_override=show_campaign_override)
+        plain_blocks.append(p)
+        html_blocks.append(h)
+
+    first_invoice = invoices[0]
+    template = _get_company_email_template(first_invoice.company)
+    greeting_name = _resolve_greeting_name(template, first_invoice)
+    paragraphs = template["paragraphs"](first_invoice)
+
+    plain_paragraphs = "\n\n".join(paragraphs)
+    html_paragraphs = "<br><br>".join(paragraphs)
+
+    plain_body = (
+        "Hi {},\n\n"
+        "{}\n\n"
+        "{}\n"
+        "Please review and confirm.\n\n"
+        "Thanks & Regards,\n"
+        "Billiontags Team"
+    ).format(greeting_name, plain_paragraphs, "\n".join(plain_blocks))
+
+    html_body = (
+        "Hi {},<br><br>"
+        "{}<br><br>"
+        "{}"
+        "Please review and confirm.<br><br>"
+        "Thanks &amp; Regards,<br>"
+        "Billiontags Team"
+    ).format(greeting_name, html_paragraphs, "<br>".join(html_blocks))
+
+    return plain_body, html_body
+
+
+# Added by me
+def _build_single_invoice_subject(invoice):
+    template = _get_company_email_template(invoice.company)
+    return template["subject"](invoice)
+
+# Added by me
+def _build_bulk_invoice_subject(invoices):
+    template = _get_company_email_template(invoices[0].company)
+    return template["subject"](invoices[0])
 
 
 

@@ -133,6 +133,7 @@
     </div>
 </div>
 
+
 <!-- Added by me -->
 <!-- Send Email Confirmation Modal -->
 <div class="modal" id="SendEmailModal">
@@ -148,6 +149,21 @@
 
             <div class="modal-body">
                 <div id="sendEmailError" class="alert alert-danger" style="display:none;"></div>
+                <div id="se_email_setup" style="display:none;">
+    <div class="form-group">
+        <label for="se_setup_to"><b>Default Email To</b> <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="se_setup_to" placeholder="a@x.com, b@x.com">
+        <div id="se_setup_to_error" class="text-danger small mt-1" style="display:none;"></div>
+    </div>
+    <div class="form-group">
+        <label for="se_setup_cc"><b>Default Email CC</b></label>
+        <input type="text" class="form-control" id="se_setup_cc" placeholder="a@x.com, b@x.com">
+        <div id="se_setup_cc_error" class="text-danger small mt-1" style="display:none;"></div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" id="se_setup_save_btn" onclick="saveCompanyEmailsAndRetry()">
+        Save & Continue
+    </button>
+</div>
 
                 <div id="sendEmailContent" style="display:none;">
                     <div class="form-group">
@@ -167,6 +183,24 @@
                         <div id="se_cc"></div>
                     </div>
                     <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="se_show_campaign_checkbox">
+                            <label class="custom-control-label" for="se_show_campaign_checkbox">
+                                Show campaign name in this email
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="se_subject"><b>Subject</b></label>
+                        <input type="text" class="form-control" id="se_subject" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label><b>Email Content</b> <small class="text-muted">(editable)</small></label>
+                        <div id="se_email_body_editor" contenteditable="true"
+                            style="border:1px solid #ccc; border-radius:4px; padding:15px; background:#fff; min-height:180px; font-size:14px;">
+                        </div>
+                    </div>
+                    <div class="form-group" id="se_campaigns_wrapper">
                         <label><b>Campaign(s)</b></label>
                         <ul id="se_campaigns"></ul>
                     </div>

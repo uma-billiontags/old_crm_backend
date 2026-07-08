@@ -11,19 +11,6 @@ PAYMENT_TERM = (
     ("Post Payment", "Post Payment"),
 )
 
-# # Added by me
-# def validate_comma_separated_emails(value):
-#     """Validates each email in a comma-separated list."""
-#     emails = [e.strip() for e in value.split(",") if e.strip()]
-#     for email in emails:
-#         try:
-#             validate_email(email)
-#         except ValidationError:
-#             raise ValidationError(f"'{email}' is not a valid email address.")
-        
-
-
-
 # Added by me 
 def validate_comma_separated_emails(value):
     """
@@ -70,9 +57,6 @@ def validate_comma_separated_emails(value):
         except ValidationError:
             raise ValidationError(f"'{email}' is not a valid email address.")
         
-
-
-
 class CompanyDetails(models.Model):
     objects = None
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="company")   # Django login account
@@ -124,7 +108,6 @@ class CompanyDetails(models.Model):
         validators=[validate_comma_separated_emails],
     )
 
-
     # Added by me
     show_campaign_name_in_email = models.BooleanField(
         default=False,
@@ -132,8 +115,6 @@ class CompanyDetails(models.Model):
         # help_text="Uncheck to hide campaign name(s) in invoice emails sent to this company.",
     )
 
-
-    
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
